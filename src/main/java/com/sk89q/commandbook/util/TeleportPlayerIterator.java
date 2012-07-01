@@ -22,46 +22,49 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import com.sk89q.commandbook.CommandBookPlugin;
 
 public class TeleportPlayerIterator extends PlayerIteratorAction {
-    
-    protected Location loc;
+
+    protected final Location loc;
     protected Location oldLoc;
-    
-    public TeleportPlayerIterator(CommandBookPlugin plugin,
-            CommandSender sender, Location loc) {
-        super(plugin, sender);
-        this.loc = loc;
+    protected final boolean silent;
+
+    public TeleportPlayerIterator(CommandSender sender, Location loc) {
+        this(sender, loc, false);
     }
-    
+
+    public TeleportPlayerIterator(CommandSender sender, Location loc, boolean silent) {
+        super(sender);
+        this.loc = loc;
+        this.silent = silent;
+    }
+
     @Override
     public void perform(Player player) {
         oldLoc = player.getLocation();
-        plugin.getSession(player).rememberLocation(player);
         player.teleport(loc);
     }
-    
+
     @Override
     public void onCaller(Player player) {
         player.sendMessage(ChatColor.YELLOW + "Teleported.");
     }
-    
+
     @Override
     public void onVictim(CommandSender sender, Player player) {
+        if (silent)
+            return;
+
         if (oldLoc.getWorld().equals(loc.getWorld())) {
             player.sendMessage(ChatColor.YELLOW + "You've been teleported by "
-                    + plugin.toName(sender) + ".");
+                    + PlayerUtil.toColoredName(sender, ChatColor.YELLOW) + ".");
         } else {
             player.sendMessage(ChatColor.YELLOW + "You've been teleported by "
-                    + plugin.toName(sender) + " to world '"
+                    + PlayerUtil.toColoredName(sender, ChatColor.YELLOW) + " to world '"
                     + loc.getWorld().getName() + "'.");
         }
-        
-        player.sendMessage(ChatColor.YELLOW + "Teleported by "
-                + plugin.toName(sender) + ".");
     }
-    
+
     @Override
     public void onInformMany(CommandSender sender, int affected) {
         sender.sendMessage(ChatColor.YELLOW.toString()

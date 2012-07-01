@@ -20,14 +20,12 @@ package com.sk89q.commandbook.events;
 
 import org.bukkit.command.CommandSender;
 import org.bukkit.event.Event;
+import org.bukkit.event.HandlerList;
 
 public class MOTDSendEvent extends Event {
-    
-    private static final long serialVersionUID = 9213545377113796845L;
-    private CommandSender target;
+    private final CommandSender target;
 
     public MOTDSendEvent(CommandSender target) {
-        super("CommandBook.MOTDPreSendEvent");
         this.target = target;
     }
 
@@ -35,4 +33,13 @@ public class MOTDSendEvent extends Event {
         return target;
     }
 
+    private static final HandlerList handlers = new HandlerList();
+
+    public HandlerList getHandlers() {
+        return handlers;
+    }
+
+    public static HandlerList getHandlerList() {
+        return handlers;
+    }
 }

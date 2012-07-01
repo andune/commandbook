@@ -27,7 +27,7 @@ import javax.sound.midi.ShortMessage;
  */
 public class MidiJingleSequencer implements JingleSequencer {
     
-    private static int[] instruments = {
+    private static final int[] instruments = {
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -55,17 +55,28 @@ public class MidiJingleSequencer implements JingleSequencer {
         1, 1, 3, 3, 2, 4, 4, 3, 1, 1,
     };*/
     
-    protected File midiFile;
+    protected final File midiFile;
     private Sequencer sequencer = null;
     
     public MidiJingleSequencer(File midiFile) throws MidiUnavailableException,
             InvalidMidiDataException, IOException {
         this.midiFile = midiFile;
 
-        sequencer = MidiSystem.getSequencer(false);
-        sequencer.open();
-        Sequence seq = MidiSystem.getSequence(midiFile);
-        sequencer.setSequence(seq);
+        try {
+            sequencer = MidiSystem.getSequencer(false);
+            sequencer.open();
+            Sequence seq = MidiSystem.getSequence(midiFile);
+            sequencer.setSequence(seq);
+        } catch (MidiUnavailableException e) {
+            sequencer.close();
+            throw e;
+        } catch (InvalidMidiDataException e) {
+            sequencer.close();
+            throw e;
+        } catch (IOException e) {
+            sequencer.close();
+            throw e;
+        }
     }
     
     public void run(final JingleNotePlayer notePlayer)
@@ -107,7 +118,6 @@ public class MidiJingleSequencer implements JingleSequencer {
             sequencer.stop();
         } catch (MidiUnavailableException e) {
             e.printStackTrace();
-            return;
         } finally {
             sequencer.close();
         }
@@ -115,7 +125,7 @@ public class MidiJingleSequencer implements JingleSequencer {
 
     public void stop() {
         if (sequencer != null) {
-            sequencer.stop();
+            sequencer.close();
         }
     }
 

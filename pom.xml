@@ -1,13 +1,13 @@
 <!--
   Maven build file for CommandBook
-  Copyright (c) 2011 sk89q <http://www.sk89q.com> 
+  Copyright (c) 2011 sk89q <http://www.sk89q.com>
   CommandBook is available under the GNU General Public License v3
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.sk89q</groupId>
   <artifactId>commandbook</artifactId>
-  <version>1.5.3-SNAPSHOT</version>
+  <version>2.2-SNAPSHOT</version>
   <name>CommandBook</name>
   <description>CommandBook brings general commands to Bukkit</description>
 
@@ -19,8 +19,16 @@
 
   <repositories>
     <repository>
+      <id>zml-repo</id>
+      <url>http://files.zachsthings.com/repo</url>
+    </repository>
+    <repository>
       <id>sk89q-mvn2</id>
       <url>http://mvn2.sk89q.com/repo</url>
+    </repository>
+    <repository>
+      <id>bukkit-repo</id>
+      <url>http://repo.bukkit.org/content/groups/public/</url>
     </repository>
   </repositories>
 
@@ -29,14 +37,26 @@
     <dependency>
       <groupId>com.sk89q</groupId>
       <artifactId>worldedit</artifactId>
-      <version>4.4.2</version>
+      <version>5.3</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.spout</groupId>
+          <artifactId>spoutapi</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+        <groupId>com.zachsthings.libcomponents</groupId>
+        <artifactId>libcomponents-bukkit</artifactId>
+        <version>1.1</version>
     </dependency>
 
     <!-- Bukkit -->
     <dependency>
       <groupId>org.bukkit</groupId>
       <artifactId>bukkit</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>1.2.5-R1.1</version>
     </dependency>
 
     <!-- Other dependencies -->
@@ -44,6 +64,13 @@
       <groupId>net.sf.opencsv</groupId>
       <artifactId>opencsv</artifactId>
       <version>2.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.10</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -65,8 +92,9 @@
         <filtering>true</filtering>
         <directory>${basedir}/src/main/resources/</directory>
         <includes>
-          <include>config.yml</include>
+          <include>config-comments.yml</include>
           <include>kits.txt</include>
+          <include>components.yml</include>
         </includes>
       </resource>
     </resources>
@@ -93,7 +121,7 @@
               <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
             </manifest>
             <manifestEntries>
-              <Class-Path>WorldEdit.jar CommandBook/WorldEdit.jar lib/WorldEdit.jar ../lib/WorldEdit.jar ../WorldEdit.jar</Class-Path>
+              <Class-Path>CommandBook/WorldEdit.jar lib/WorldEdit.jar ../lib/WorldEdit.jar ../WorldEdit.jar</Class-Path>
             </manifestEntries>
           </archive>
         </configuration>
@@ -115,6 +143,7 @@
               <artifactSet>
                 <includes>
                   <include>net.sf.opencsv:opencsv</include>
+                  <include>com.zachsthings.libcomponents:libcomponents-bukkit</include>
                 </includes>
               </artifactSet>
             </configuration>
@@ -125,7 +154,7 @@
       <!-- Assembly -->
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.2-beta-2</version>
+        <version>2.2-beta-2</version><!--$NO-MVN-MAN-VER$-->
         <configuration>
           <descriptor>${basedir}/src/main/assembly/default.xml</descriptor>
         </configuration>
@@ -135,10 +164,11 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
-        <version>2.1</version>
+        <version>2.2.2</version><!--$NO-MVN-MAN-VER$-->
         <configuration>
           <preparationGoals>assembly:assembly</preparationGoals>
           <goals>assembly:assembly</goals>
+          <tagNameFormat>@{project.version}</tagNameFormat>
         </configuration>
       </plugin>
     </plugins>

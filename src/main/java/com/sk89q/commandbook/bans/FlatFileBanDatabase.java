@@ -18,108 +18,87 @@
 
 package com.sk89q.commandbook.bans;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
+import com.sk89q.commandbook.CommandBook;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+
+import java.io.*;
 import java.net.InetAddress;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.logging.FileHandler;
-import java.util.logging.Formatter;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
-import com.sk89q.commandbook.CommandBookPlugin;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.logging.*;
+
+import static com.sk89q.commandbook.CommandBook.logger;
+import static com.sk89q.commandbook.util.PlayerUtil.toUniqueName;
 
 /**
  * Flat file ban database.
- * 
+ *
  * @author sk89q
  */
 public class FlatFileBanDatabase implements BanDatabase {
-    
-    protected static final Logger logger = Logger.getLogger("Minecraft.CommandBook");
-    
+
     protected final Logger auditLogger
             = Logger.getLogger("Minecraft.CommandBook.Bans");
-    
-    protected CommandBookPlugin plugin;
-    protected File dataDirectory;
-    protected File namesFile;
-    protected File ipFile;
 
-    protected Set<String> bannedNames;
-    protected Set<String> bannedIP;
+    protected final BansComponent component;
+    protected final File dataDirectory;
+    protected final File namesFile;
 
-    public FlatFileBanDatabase(File dataDirectory, CommandBookPlugin plugin) {
+    protected Map<String, Ban> bannedNames;
+
+    public static boolean toImport(File dataDirectory) {
+        return new File(dataDirectory, "banned_names.txt").exists();
+    }
+
+    public FlatFileBanDatabase(File dataDirectory, BansComponent component) {
         this.dataDirectory = dataDirectory;
-        this.plugin = plugin;
+        this.component = component;
 
         namesFile = new File(dataDirectory, "banned_names.txt");
-        ipFile = new File(dataDirectory, "banned_ip.txt");
-        
+
         // Set up an audit trail
         try {
             FileHandler handler = new FileHandler(
                     (new File(dataDirectory, "bans.%g.%u.log")).getAbsolutePath()
                     .replace("\\", "/"), true);
-            
+
             handler.setFormatter(new Formatter() {
-                private SimpleDateFormat dateFormat =
-                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                
+                private final SimpleDateFormat dateFormat =
+                        new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+
                 @Override
                 public String format(LogRecord record) {
                     return "[" + dateFormat.format(new Date())
                             + "] " + record.getMessage() + "\r\n";
                 }
             });
-            
+
             auditLogger.addHandler(handler);
         } catch (SecurityException e) {
-            logger.warning("CommandBook: Failed to setup audit log for the "
+            logger().warning("Failed to setup audit log for the "
                     + "flat file ban database: " + e.getMessage());
         } catch (IOException e) {
-            logger.warning("CommandBook: Failed to setup audit log for the "
+            logger().warning("Failed to setup audit log for the "
                     + "flat file ban database: " + e.getMessage());
         }
     }
 
     public synchronized boolean load() {
         boolean successful = true;
-        
+
         try {
             bannedNames = readLowercaseList(namesFile);
-            logger.info("CommandBook: " + bannedNames.size() + " banned name(s) loaded.");
+            logger().info(bannedNames.size() + " banned name(s) loaded.");
         } catch (IOException e) {
-            bannedNames = new HashSet<String>();
-            logger.warning("CommandBook: Failed to load " + namesFile.getAbsolutePath()
+            bannedNames = new HashMap<String, Ban>();
+            logger().warning("Failed to load " + namesFile.getAbsolutePath()
                     + ": " + e.getMessage());
             successful = false;
         }
-/*
-        try {
-            bannedIP = readList(ipFile);
-            logger.info("CommandBook: " + bannedIP.size() + " banned IP(s) loaded.");
-        } catch (IOException e) {
-            bannedIP = new HashSet<String>();
-            logger.warning("CommandBook: Failed to load " + ipFile.getAbsolutePath()
-                    + ": " + e.getMessage());
-            successful = false;
-        }
-*/
         return successful;
     }
 
@@ -134,18 +113,18 @@ public class FlatFileBanDatabase implements BanDatabase {
         }
         return false;
     }
-    
+
     /**
      * Read a list from file. Each line is trimmed and made lower case.
-     * 
+     *
      * @param file
      * @return
      * @throws IOException
      */
-    protected synchronized Set<String> readLowercaseList(File file) throws IOException {
+    protected synchronized Map<String, Ban> readLowercaseList(File file) throws IOException {
         FileInputStream input = null;
-        Set<String> list = new HashSet<String>();
-        
+        Map<String, Ban> list = new HashMap<String, Ban>();
+
         try {
             input = new FileInputStream(file);
             InputStreamReader streamReader = new InputStreamReader(input, "utf-8");
@@ -154,137 +133,153 @@ public class FlatFileBanDatabase implements BanDatabase {
 
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
-                
+
                 if (line.length() > 0) {
-                    list.add(line.toLowerCase().trim());
+                    list.put(line.toLowerCase().trim(),
+                            new Ban(line.toLowerCase().trim(), null, null, System.currentTimeMillis(), 0L));
                 }
             }
-        } catch (FileNotFoundException e) {
+        } catch (FileNotFoundException ignored) {
         } finally {
             if (input != null) {
                 try {
                     input.close();
-                } catch (IOException e) {
+                } catch (IOException ignored) {
                 }
             }
         }
-        
+
         return list;
     }
 
     public synchronized boolean save() {
         boolean successful = true;
-        
+
         try {
             writeList(namesFile, bannedNames);
             //logger.info("CommandBook: " + bannedNames.size() + " banned names written.");
         } catch (IOException e) {
-            logger.warning("CommandBook: Failed to write " + namesFile.getAbsolutePath()
+            logger().warning("Failed to write " + namesFile.getAbsolutePath()
                     + ": " + e.getMessage());
             successful = false;
         }
-/*
-        try {
-            writeList(ipFile, bannedIP);
-            //logger.info("CommandBook: " + bannedIP.size() + " banned IPs written.");
-        } catch (IOException e) {
-            logger.warning("CommandBook: Failed to write " + ipFile.getAbsolutePath()
-                    + ": " + e.getMessage());
-            successful = false;
-        }
-*/
         return successful;
     }
-    
-    protected synchronized void writeList(File file, Set<String> list)
+
+    protected synchronized void writeList(File file, Map<String, Ban> list)
             throws IOException {
         FileOutputStream output = null;
-        
+
         try {
             output = new FileOutputStream(file);
             OutputStreamWriter streamWriter = new OutputStreamWriter(output, "utf-8");
             BufferedWriter writer = new BufferedWriter(streamWriter);
-            
-            for (String line : list) {
+
+            for (String line : list.keySet()) {
                 writer.write(line + "\r\n");
             }
-            
+
             writer.close();
-        } catch (FileNotFoundException e) {
+        } catch (FileNotFoundException ignore) {
         } catch (UnsupportedEncodingException e) {
-            logger.log(Level.WARNING, "Failed to write list", e);
+            logger().log(Level.WARNING, "Failed to write list", e);
         } finally {
             if (output != null) {
                 try {
                     output.close();
-                } catch (IOException e) {
+                } catch (IOException ignore) {
                 }
             }
         }
     }
 
     public synchronized boolean isBannedName(String name) {
-        return bannedNames.contains(name.toLowerCase().trim());
+        return bannedNames.containsKey(name.toLowerCase().trim());
     }
 
     public synchronized boolean isBannedAddress(InetAddress address) {
-        return bannedIP.contains(address.getHostAddress());
+        return false;
+    }
+
+    public String getBannedNameMesage(String name) {
+        return getBannedNameMessage(name);
+    }
+
+    public String getBannedNameMessage(String name) {
+        return "You have been banned";
+    }
+
+    public String getBannedAddressMessage(String address) {
+        return "You have been banned";
     }
 
     public synchronized void banName(String name, CommandSender source, String reason) {
         auditLogger.info(String.format("BAN: %s (%s) banned name '%s': %s",
-                plugin.toUniqueName(source), 
-                plugin.toInetAddressString(source),
+                toUniqueName(source),
+                CommandBook.inst().toInetAddressString(source),
                 name,
                 reason));
-        
-        bannedNames.add(name.toLowerCase());
+
+        bannedNames.put(name, new Ban(name.toLowerCase(), null, null, System.currentTimeMillis(), 0L));
     }
 
     public synchronized void banAddress(String address, CommandSender source, String reason) {
-        auditLogger.info(String.format("BAN: %s (%s) banned address '%s': %s",
-                plugin.toUniqueName(source), 
-                plugin.toInetAddressString(source),
-                address,
-                reason));
-        
-        bannedIP.add(address);
+        throw new UnsupportedOperationException("Not supported.");
+    }
+
+    public void ban(Player player, CommandSender source, String reason, long end) {
+        banName(player.getName(), source, reason);
+    }
+
+    public void ban(String name, String address, CommandSender source, String reason, long end) {
+        banName(name, source, reason);
     }
 
     public boolean unbanName(String name, CommandSender source, String reason) {
-        boolean removed = bannedNames.remove(name.toLowerCase());
-        
+        boolean removed = bannedNames.remove(name.toLowerCase()) != null;
+
         if (removed) {
             auditLogger.info(String.format("UNBAN: %s (%s) unbanned name '%s': %s",
-                    plugin.toUniqueName(source), 
-                    plugin.toInetAddressString(source),
+                    toUniqueName(source),
+                    CommandBook.inst().toInetAddressString(source),
                     name,
                     reason));
         }
-        
+
         return removed;
     }
 
     public boolean unbanAddress(String address, CommandSender source, String reason) {
-        boolean removed = bannedIP.remove(address);
-        
-        if (removed) {
-            auditLogger.info(String.format("UNBAN: %s (%s) unbanned ADDRESS '%s'",
-                    plugin.toUniqueName(source), 
-                    plugin.toInetAddressString(source),
-                    address,
-                    reason));
-        }
-        
-        return removed;
+        return false;
+    }
+
+    public boolean unban(String name, String address, CommandSender source, String reason) {
+        return unbanName(name, source, reason);
     }
 
     public void logKick(Player player, CommandSender source, String reason) {
         auditLogger.info(String.format("KICKED: %s (%s) kicked player '%s': %s",
-                plugin.toUniqueName(source), 
-                plugin.toInetAddressString(source),
+                toUniqueName(source),
+                CommandBook.inst().toInetAddressString(source),
                 player.getName(),
                 reason));
     }
 
+    public void importFrom(BanDatabase bans) {
+        throw new UnsupportedOperationException("Importing to legacy ban storage provider not supported.");
+    }
+
+    @Override
+    public Ban getBannedName(String name) {
+        return bannedNames.get(name);
+    }
+
+    @Override
+    public Ban getBannedAddress(String address) {
+        return null;
+    }
+
+    public Iterator<Ban> iterator() {
+        return bannedNames.values().iterator();
+    }
 }

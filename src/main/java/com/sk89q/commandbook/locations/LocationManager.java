@@ -18,57 +18,71 @@
 
 package com.sk89q.commandbook.locations;
 
-import java.io.IOException;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import java.io.IOException;
+import java.util.List;
+
 public interface LocationManager<T> {
-    
+
     /**
      * Set this manager to be for one world only.
-     * 
-     * @param world
+     *
+     * @param world The world to use
      */
     public void castWorld(World world);
 
     /**
      * Load from file.
-     * 
-     * @throws IOException 
+     *
+     * @throws IOException when an error occurs during IO
      */
     public void load() throws IOException;
 
     /**
      * Save  to file.
-     * 
-     * @throws IOException 
+     *
+     * @throws IOException when an error occurs during IO
      */
     public void save() throws IOException;
 
     /**
      * Get by name.
-     * 
-     * @param id
-     * @return
+     *
+     * @param id The name to get
+     * @return The {@link T} if registered
      */
     public T get(String id);
-    
+
+    /**
+     * Updates warps from unloaded worlds.
+     */
+    public void updateWorlds();
+
     /**
      * Create a location.
-     * 
-     * @param id
-     * @param loc
-     * @param player
-     * @return
+     *
+     * @param id The name of the location
+     * @param loc The location
+     * @param player The player to own the location
+     * @return The created location
      */
     public T create(String id, Location loc, Player player);
 
     /**
      * Removes a location.
-     * 
-     * @param id
+     *
+     * @param id The id to remove
      * @return whether it was removed
      */
     public boolean remove(String id);
+
+    /**
+     * Gets all the locations that this location manager has.
+     *
+     * @return This location manager's locations.
+     */
+    public List<T> getLocations();
 }
