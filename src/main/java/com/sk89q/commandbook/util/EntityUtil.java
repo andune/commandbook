@@ -21,6 +21,7 @@ package com.sk89q.commandbook.util;
 import com.sk89q.minecraft.util.commands.CommandException;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.LivingEntity;
 
 public class EntityUtil {
     /**
@@ -33,24 +34,47 @@ public class EntityUtil {
      * @throws com.sk89q.minecraft.util.commands.CommandException if no CreatureType could be found
      */
     public static EntityType matchCreatureType(CommandSender sender,
-                                          String filter, boolean requireSpawnable) throws CommandException {
+            String filter, boolean requireSpawnable) throws CommandException {
+        
+        EntityType partialMatch = null;
 
         for (EntityType type : EntityType.values()) {
-            if (type.name().replace("_", "").equalsIgnoreCase(filter.replace("_", ""))
-                    || (type.getName() != null && type.getName().equalsIgnoreCase(filter)) && (type.isSpawnable() || !requireSpawnable)) {
+            Class<?> clazz = type.getEntityClass();
+            if (clazz == null) continue;
+            if (!LivingEntity.class.isAssignableFrom(clazz)) continue;
+            if (requireSpawnable && !type.isSpawnable()) continue;
+            
+            if (type.name().replace("_", "")
+                    .equalsIgnoreCase(filter.replace("_", ""))) {
+                return type;
+            }
+            
+            if (type.getName() != null) {
+                if (type.getName().equalsIgnoreCase(filter)) {
+                    return type;
+                }
+                
+                if (type.getName().toLowerCase().startsWith(filter.toLowerCase())) {
+                    partialMatch = type;
+                }
+            }
+            
+            if (type.name().replace("_", "")
+                    .equalsIgnoreCase(filter.replace("_", ""))
+                    || (type.getName() != null && type.getName()
+                            .equalsIgnoreCase(filter))
+                    && (type.isSpawnable() || !requireSpawnable)) {
                 return type;
             }
         }
-
-        for (EntityType testType : EntityType.values()) {
-            if (testType.getName() != null && testType.getName().toLowerCase().startsWith(filter.toLowerCase()) && (testType.isSpawnable() || !requireSpawnable)) {
-                return testType;
-            }
+        
+        if (partialMatch != null) {
+            return partialMatch;
         }
 
         throw new CommandException("Unknown mob specified! You can "
                 + "choose from the list of: "
-                + getEntityTypeNameList(requireSpawnable));
+                + getCreatureNameList(requireSpawnable));
     }
 
     /**
@@ -59,9 +83,16 @@ public class EntityUtil {
      * @param requireSpawnable Whether to only show entries that are spawnable
      * @return
      */
-    public static String getEntityTypeNameList(boolean requireSpawnable) {
+    public static String getCreatureNameList(boolean requireSpawnable) {
         StringBuilder str = new StringBuilder();
         for (EntityType type : EntityType.values()) {
+            Class<?> entityClass = type.getEntityClass();
+            if (entityClass == null) {
+                continue;
+            }
+            if (!LivingEntity.class.isAssignableFrom(entityClass)) {
+                continue;
+            }
             if (!requireSpawnable || type.isSpawnable()) {
                 if (str.length() > 0) {
                     str.append(", ");
